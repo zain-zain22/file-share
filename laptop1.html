@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ml">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickShare - ലാപ്ടോപ്പ്</title>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #efeae2; /* വാട്സാപ്പ് ബാക്ക്ഗ്രൗണ്ട് */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 10px;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 450px;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-header {
+            background-color: #008069;
+            color: white;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .chat-header h2 {
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+
+        .status-bar {
+            font-size: 13px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 6px 12px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-top: 5px;
+        }
+
+        /* ചാറ്റ് വിൻഡോ - ഇതിലേക്ക് ഫയൽ ഡ്രാഗ് ചെയ്യാം */
+        .chat-body {
+            padding: 20px;
+            min-height: 250px;
+            max-height: 350px;
+            overflow-y: auto;
+            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            transition: background-color 0.3s ease;
+            position: relative;
+        }
+
+        /* ഫയൽ മുകളിൽ കൊണ്ട് വരുമ്പോൾ ബോക്സിന് ഉണ്ടാകുന്ന മാറ്റം */
+        .chat-body.dragover {
+            background-color: rgba(0, 128, 105, 0.2) !important;
+            border: 2px dashed #008069;
+        }
+
+        .status-bubble {
+            align-self: center;
+            background: rgba(225, 245, 254, 0.9);
+            color: #1e3a47;
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            text-align: center;
+            max-width: 90%;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .download-link {
+            display: inline-block;
+            margin-top: 5px;
+            color: #008069;
+            font-weight: bold;
+            text-decoration: none;
+            background: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            border: 1px solid #008069;
+        }
+
+        .chat-footer {
+            background: #f0f2f5;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .file-label {
+            background: #e1e1e1;
+            padding: 10px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+        }
+
+        .chat-footer input[type="file"] {
+            display: none;
+        }
+
+        .send-btn {
+            flex: 1;
+            background-color: #008069;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 15px;
+        }
+
+        .send-btn:disabled {
+            background-color: #b3d7d1;
+            cursor: not-allowed;
+        }
+
+        .file-name-display {
+            font-size: 12px;
+            color: #555;
+            padding: 0 15px 5px 15px;
+            background: #f0f2f5;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+
+<div class="chat-container">
+    <div class="chat-header">
+        <h2>💻 ലാപ്ടോപ്പ് വിൻഡോ</h2>
+        <div class="status-bar" id="status">ഡിവൈസ് ഐഡി റെഡിയാക്കുന്നു...</div>
+    </div>
+
+    <div class="chat-body" id="chat-body">
+        <div class="status-bubble" id="main-status">മൊബൈലിൽ നിന്ന് കണക്ട് ആകാൻ കാത്തിരിക്കുന്നു...</div>
+    </div>
+
+    <div class="file-name-display" id="file-name" style="display: none;"></div>
+
+    <div class="chat-footer">
+        <label for="file-input" class="file-label" title="ഫയൽ തിരഞ്ഞെടുക്കുക">📎</label>
+        <input type="file" id="file-input" onchange="displayFileName()" disabled>
+        <button id="send-btn" class="send-btn" onclick="sendFile()" disabled>ഫയൽ അയക്കുക</button>
+    </div>
+</div>
+
+<script>
+    const peer = new Peer('my-laptop-pc'); 
+    let conn;
+    let selectedFile = null; // ഡ്രാഗ് ചെയ്യുന്ന ഫയൽ സൂക്ഷിക്കാൻ
+    
+    const chatBody = document.getElementById('chat-body');
+    const fileInput = document.getElementById('file-input');
+    const sendBtn = document.getElementById('send-btn');
+    const nameDisplay = document.getElementById('file-name');
+
+    function showStatus(message, isLink = false, linkElem = null) {
+        const bubble = document.createElement('div');
+        bubble.className = 'status-bubble';
+        bubble.innerText = message;
+        if(isLink && linkElem) {
+            bubble.appendChild(document.createElement('br'));
+            bubble.appendChild(linkElem);
+        }
+        chatBody.appendChild(bubble);
+        chatBody.scrollTop = chatBody.scrollHeight;
+    }
+
+    peer.on('open', (id) => {
+        document.getElementById('status').innerText = "കാത്തിരിക്കുന്നു...";
+    });
+
+    peer.on('connection', (connection) => {
+        conn = connection;
+        document.getElementById('status').innerText = "മൊബൈലുമായി കണക്ട് ആയി!";
+        document.getElementById('main-status').style.display = 'none';
+        showStatus("🤝 മൊബൈലുമായി കണക്ട് ആയി! ഫയലുകൾ വലിച്ചിടുകയോ സെലക്ട് ചെയ്യുകയോ ചെയ്യാം.");
+        
+        fileInput.disabled = false;
+        sendBtn.disabled = false;
+
+        conn.on('data', (data) => {
+            if (data.file) {
+                const blob = new Blob([data.file], { type: data.fileType });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = data.fileName;
+                link.className = 'download-link';
+                link.innerText = "⬇️ ഡൗൺലോഡ്: " + data.fileName;
+                showStatus(`📩 ഫയൽ ലഭിച്ചു: ${data.fileName}`, true, link);
+            }
+        });
+    });
+
+    // --- ബ്രൗസറിൽ നേരിട്ട് ഓപ്പൺ ആകുന്നത് തടയാനുള്ള ഡ്രാഗ് ഫങ്ക്ഷനുകൾ ---
+
+    // ഫയൽ മുകളിലേക്ക് പിടിക്കുമ്പോൾ ബ്രൗസർ ഓപ്പൺ ആകുന്നത് തടയുന്നു (e.preventDefault)
+    chatBody.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        if (!fileInput.disabled) {
+            chatBody.classList.add('dragover');
+        }
+    });
+
+    chatBody.addEventListener('dragleave', () => {
+        chatBody.classList.remove('dragover');
+    });
+
+    // ഫയൽ ബോക്സിലേക്ക് ഇടുമ്പോൾ
+    chatBody.addEventListener('drop', (e) => {
+        e.preventDefault(); // ബ്രൗസറിൽ ഫയൽ ഓപ്പൺ ആകുന്നത് ഇവിടെ വെച്ച് തടയുന്നു!
+        chatBody.classList.remove('dragover');
+
+        if (fileInput.disabled) return; 
+
+        if (e.dataTransfer.files.length > 0) {
+            selectedFile = e.dataTransfer.files[0];
+            nameDisplay.innerText = "വലിച്ചിട്ട ഫയൽ: " + selectedFile.name;
+            nameDisplay.style.display = "block";
+            showStatus(`📎 ഫയൽ റെഡിയാണ്: ${selectedFile.name}`);
+        }
+    });
+
+    function displayFileName() {
+        if(fileInput.files.length > 0) {
+            selectedFile = fileInput.files[0];
+            nameDisplay.innerText = "സെലക്ട് ചെയ്ത ഫയൽ: " + selectedFile.name;
+            nameDisplay.style.display = "block";
+        }
+    }
+
+    function sendFile() {
+        if (selectedFile && conn) {
+            showStatus(`📤 ഫയൽ അയക്കുന്നു: ${selectedFile.name}...`);
+            conn.send({
+                file: selectedFile,
+                fileName: selectedFile.name,
+                fileType: selectedFile.type
+            });
+            showStatus("✅ വിജയകരമായി അയച്ചു!");
+            
+            nameDisplay.style.display = "none";
+            fileInput.value = '';
+            selectedFile = null;
+        } else {
+            alert("ദയവായി ആദ്യം ഒരു ഫയൽ സെലക്ട് ചെയ്യുക അല്ലെങ്കിൽ വലിച്ചിടുക!");
+        }
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ml">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickShare - മൊബൈൽ</title>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #efeae2; padding: 20px; }
+        .box { max-width: 400px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .status { background: #efeae2; padding: 10px; border-radius: 8px; margin: 15px 0; }
+        .btn { background: #00a884; color: white; padding: 12px; border: none; border-radius: 5px; cursor: pointer; width: 100%; font-weight: bold; margin-bottom: 10px; }
+        .btn-send { background: #008069; }
+        .btn:disabled { background: #b3d7d1; }
+        #chat-body { min-height: 150px; background: #f9f9f9; padding: 10px; border-radius: 8px; margin-bottom: 10px; text-align: left;}
+        .download-link { display: inline-block; margin-top: 5px; color: #008069; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <h2 style="color: #008069;">📱 മൊബൈൽ വിൻഡോ</h2>
+    <br>
+    <button class="btn" onclick="connectToLaptop()">💻 ലാപ്ടോപ്പിലേക്ക് കണക്ട് ചെയ്യുക</button>
+    
+    <div class="status" id="status">ലിങ്ക് ചെയ്തിട്ടില്ല</div>
+    
+    <div id="chat-body"></div>
+    <div id="file-name" style="font-size:12px; color:gray; margin-bottom:5px;"></div>
+
+    <input type="file" id="file-input" onchange="document.getElementById('file-name').innerText=this.files[0].name" disabled>
+    <button id="send-btn" class="btn btn-send" onclick="sendFile()" disabled>ഫയൽ അയക്കുക</button>
+</div>
+
+<script>
+    const peer = new Peer('my-mobile-phone'); 
+    let conn;
+
+    // ലാപ്ടോപ്പിലേക്ക് നേരിട്ട് കണക്ട് ചെയ്യുന്ന ഫങ്ക്ഷൻ
+    function connectToLaptop() {
+        document.getElementById('status').innerText = "കണക്ട് ചെയ്യുന്നു...";
+        // ലാപ്ടോപ്പിന്റെ ഫിക്സഡ് ഐഡി ആയ 'my-laptop-pc' ലേക്ക് കണക്ട് ചെയ്യുന്നു
+        conn = peer.connect('my-laptop-pc'); 
+        
+        conn.on('open', () => {
+            document.getElementById('status').innerText = "🤝 ലാപ്ടോപ്പുമായി കണക്ട് ആയി!";
+            document.getElementById('file-input').disabled = false;
+            document.getElementById('send-btn').disabled = false;
+        });
+
+        conn.on('data', (data) => {
+            if (data.file) {
+                const blob = new Blob([data.file], { type: data.fileType });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = data.fileName;
+                link.className = 'download-link';
+                link.innerText = "⬇️ ഡൗൺലോഡ്: " + data.fileName;
+                document.getElementById('chat-body').appendChild(link);
+            }
+        });
+    }
+
+    function sendFile() {
+        const fileInput = document.getElementById('file-input');
+        const file = fileInput.files[0];
+        if (file && conn) {
+            conn.send({ file: file, fileName: file.name, fileType: file.type });
+            alert("ഫയൽ അയച്ചു!");
+            fileInput.value = '';
+            document.getElementById('file-name').innerText = '';
+        }
+    }
+</script>
+</body>
+</html>

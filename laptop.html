@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ml">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickShare - ലാപ്ടോപ്പ്</title>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <style>
+        /* (നേരത്തെ നൽകിയ അതേ വാട്സാപ്പ് സ്റ്റൈൽ CSS ഇവിടെയും ഉപയോഗിക്കാം) */
+        body { font-family: sans-serif; text-align: center; background: #efeae2; padding: 20px; }
+        .box { max-width: 400px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .status { background: #e1f5fe; padding: 10px; border-radius: 8px; margin: 15px 0; }
+        .btn { background: #008069; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; width: 100%; font-weight: bold; }
+        .btn:disabled { background: #b3d7d1; }
+        #chat-body { min-height: 150px; background: #f9f9f9; padding: 10px; border-radius: 8px; margin-bottom: 10px; text-align: left;}
+        .download-link { display: inline-block; margin-top: 5px; color: #008069; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <h2 style="color: #008069;">💻 ലാപ്ടോപ്പ് വിൻഡോ</h2>
+    <p style="margin-top: 10px; color: #555;">മൊബൈലിൽ നിന്ന് കണക്ട് ആകാൻ കാത്തിരിക്കുന്നു...</p>
+    
+    <div class="status" id="status">റെഡിയാണ്...</div>
+    
+    <div id="chat-body"></div>
+    <div id="file-name" style="font-size:12px; color:gray; margin-bottom:5px;"></div>
+
+    <input type="file" id="file-input" onchange="document.getElementById('file-name').innerText=this.files[0].name" disabled>
+    <button id="send-btn" class="btn" onclick="sendFile()" disabled>ഫയൽ അയക്കുക</button>
+</div>
+
+<script>
+    // ലാപ്ടോപ്പിന് സ്ഥിരമായി ഒരു ഐഡി നൽകുന്നു
+    const peer = new Peer('my-laptop-pc'); 
+    let conn;
+
+    peer.on('open', (id) => {
+        document.getElementById('status').innerText = "ലാപ്ടോപ്പ് ഐഡി റെഡിയാണ്";
+    });
+
+    // മൊബൈലിൽ നിന്ന് കണക്ഷൻ വരുമ്പോൾ
+    peer.on('connection', (connection) => {
+        conn = connection;
+        document.getElementById('status').innerText = "🤝 മൊബൈലുമായി കണക്ട് ആയി!";
+        document.getElementById('file-input').disabled = false;
+        document.getElementById('send-btn').disabled = false;
+
+        conn.on('data', (data) => {
+            if (data.file) {
+                const blob = new Blob([data.file], { type: data.fileType });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = data.fileName;
+                link.className = 'download-link';
+                link.innerText = "⬇️ ഡൗൺലോഡ്: " + data.fileName;
+                document.getElementById('chat-body').appendChild(link);
+            }
+        });
+    });
+
+    function sendFile() {
+        const fileInput = document.getElementById('file-input');
+        const file = fileInput.files[0];
+        if (file && conn) {
+            conn.send({ file: file, fileName: file.name, fileType: file.type });
+            alert("ഫയൽ അയച്ചു!");
+            fileInput.value = '';
+            document.getElementById('file-name').innerText = '';
+        }
+    }
+</script>
+</body>
+</html>
